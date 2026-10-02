@@ -1,0 +1,39 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: portsec-allowlist
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: portsec-allowlist
+  namespace: portsec-allowlist
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: portsec-allowlist
+rules:
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines", "virtualmachineinstances"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: portsec-allowlist
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: portsec-allowlist}
+subjects: [{kind: ServiceAccount, name: portsec-allowlist, namespace: portsec-allowlist}]
+---
+# hostPath mount of the node's OVN socket (root:root 0750) needs root + hostPath: privileged SCC.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: portsec-allowlist-privileged
+  namespace: portsec-allowlist
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: system:openshift:scc:privileged}
+subjects: [{kind: ServiceAccount, name: portsec-allowlist, namespace: portsec-allowlist}]

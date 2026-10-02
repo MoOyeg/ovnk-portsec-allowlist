@@ -1,0 +1,34 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: portsec-allowlist
+  namespace: portsec-allowlist
+  labels: {app: portsec-allowlist}
+spec:
+  selector: {matchLabels: {app: portsec-allowlist}}
+  template:
+    metadata:
+      labels: {app: portsec-allowlist}
+    spec:
+      serviceAccountName: portsec-allowlist
+      priorityClassName: system-node-critical
+      tolerations: [{operator: Exists}]
+      containers:
+        - name: reconciler
+          # Same image as ovnkube-node (has ovn-nbctl, ovsdb-client, oc, python3); set by install.sh.
+          image: OVNKUBE_IMAGE
+          command: ["python3", "-u", "/opt/portsec/reconcile.py"]
+          env:
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: NB_DB, value: "unix:/run/ovn/ovnnb_db.sock"}
+            - {name: RESYNC_SECONDS, value: "30"}
+            - {name: DRY_RUN, value: "false"}
+          securityContext: {privileged: true, runAsUser: 0}
+          resources: {requests: {cpu: 20m, memory: 64Mi}, limits: {memory: 256Mi}}
+          volumeMounts:
+            - {name: ovn-run, mountPath: /run/ovn}
+            - {name: code, mountPath: /opt/portsec}
+      volumes:
+        - {name: ovn-run, hostPath: {path: /var/run/ovn-ic, type: Directory}}
+        - {name: code, configMap: {name: portsec-allowlist-code}}
